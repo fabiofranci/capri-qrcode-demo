@@ -95,6 +95,9 @@
   <img src="/logo.png" alt="Logo">
   <div class="header-title">Comune di Capri – Verifica Permessi</div>
 </div>
+<div style="text-align:center; margin-top:10px; color:#666;">
+  Sistema di controllo accessi NCC e navette
+</div>
 
 <h2>Scanner Polizia Municipale</h2>
 
