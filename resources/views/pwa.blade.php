@@ -9,27 +9,92 @@
     <link rel="manifest" href="/manifest.json">
 
 <style>
-  body { margin:0; font-family: Arial; background:#111; color:#fff; }
-  #reader { width: 100%; max-width: 420px; margin: 0 auto; }
-  #result { margin: 0; }
+  body {
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:#f4f6f8;
+    color:#222;
+  }
+
+  .header {
+    background:#1f3c88;
+    color:#fff;
+    padding:15px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+  }
+
+  .header img {
+    height:40px;
+  }
+
+  .header-title {
+    font-size:18px;
+    font-weight:bold;
+  }
+
+  #reader {
+    width:100%;
+    max-width:400px;
+    margin:20px auto;
+  }
 
   .screen {
-    position: fixed; inset: 0;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    text-align: center; padding: 20px;
-    transition: background 120ms ease;
+    position: fixed;
+    inset: 0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:20px;
   }
-  .ok   { background:#2ecc71; }
-  .ko   { background:#e74c3c; }
 
-  .plate { font-size: 48px; font-weight: 700; letter-spacing: 2px; }
-  .meta  { font-size: 18px; opacity:.95; }
+  .ok {
+    background:#2ecc71;
+    color:#fff;
+  }
 
-  .hint { position: fixed; bottom: 12px; left:0; right:0; text-align:center; opacity:.6; font-size:12px; }
+  .ko {
+    background:#e74c3c;
+    color:#fff;
+  }
+
+  .badge {
+    font-size:64px;
+    margin-bottom:10px;
+  }
+
+  .plate {
+    font-size:48px;
+    font-weight:bold;
+    letter-spacing:2px;
+  }
+
+  .meta {
+    font-size:18px;
+    margin-top:5px;
+  }
+
+  button {
+    margin-top:20px;
+    padding:12px 20px;
+    font-size:16px;
+    border:none;
+    border-radius:6px;
+    background:#1f3c88;
+    color:#fff;
+    cursor:pointer;
+  }
 </style>
 </head>
 <body>
+<div class="header">
+  <img src="/logo.png" alt="Logo">
+  <div class="header-title">Comune di Capri – Verifica Permessi</div>
+</div>
 
 <h2>Scanner Polizia Municipale</h2>
 
@@ -67,24 +132,26 @@ function lockScan(ms = 2000) {
 }
 
 function renderValid(data) {
-  const el = document.getElementById('result');
-  el.innerHTML = `
+  document.getElementById('result').innerHTML = `
     <div class="screen ok">
-      <div style="font-size:42px;">✅</div>
+      <div class="badge">✔</div>
       <div class="plate">${data.plate}</div>
       <div class="meta">${data.holder}</div>
       <div class="meta">${data.type}</div>
       <div class="meta">Scadenza: ${data.valid_to}</div>
+
+      <button onclick="resetScanner()">Nuova scansione</button>
     </div>
   `;
 }
 
 function renderInvalid(data) {
-  const el = document.getElementById('result');
-  el.innerHTML = `
+  document.getElementById('result').innerHTML = `
     <div class="screen ko">
-      <div style="font-size:42px;">❌</div>
-      <div class="meta">${data.reason || 'Non valido'}</div>
+      <div class="badge">✖</div>
+      <div class="meta">${data.reason || 'Permesso non valido'}</div>
+
+      <button onclick="resetScanner()">Nuova scansione</button>
     </div>
   `;
 }
