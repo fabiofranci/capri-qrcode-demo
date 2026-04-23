@@ -8,28 +8,26 @@
     <!-- Manifest -->
     <link rel="manifest" href="/manifest.json">
 
-    <style>
-        body {
-            font-family: Arial;
-            text-align: center;
-            background: #111;
-            color: white;
-        }
+<style>
+  body { margin:0; font-family: Arial; background:#111; color:#fff; }
+  #reader { width: 100%; max-width: 420px; margin: 0 auto; }
+  #result { margin: 0; }
 
-        #reader {
-            width: 300px;
-            margin: auto;
-        }
+  .screen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 20px;
+    transition: background 120ms ease;
+  }
+  .ok   { background:#2ecc71; }
+  .ko   { background:#e74c3c; }
 
-        .result {
-            margin-top: 20px;
-            padding: 20px;
-            border-radius: 10px;
-        }
+  .plate { font-size: 48px; font-weight: 700; letter-spacing: 2px; }
+  .meta  { font-size: 18px; opacity:.95; }
 
-        .valid { background: #2ecc71; }
-        .invalid { background: #e74c3c; }
-    </style>
+  .hint { position: fixed; bottom: 12px; left:0; right:0; text-align:center; opacity:.6; font-size:12px; }
+</style>
 </head>
 <body>
 
@@ -42,62 +40,104 @@
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
-function showResult(data) {
-    const div = document.getElementById('result');
+let locked = false;
+let unlockTimer = null;
 
-    if (data.status === 'valid') {
-        div.className = 'result valid';
-        div.innerHTML = `
-            <h2>✅ VALIDO</h2>
-            <p><strong>${data.plate}</strong></p>
-            <p>${data.holder}</p>
-            <p>${data.type}</p>
-            <p>Scadenza: ${data.valid_to}</p>
-        `;
-    } else {
-        div.className = 'result invalid';
-        div.innerHTML = `
-            <h2>❌ NON VALIDO</h2>
-            <p>${data.reason}</p>
-        `;
-    }
+// Beep “locale” (niente file esterni)
+function beep(freq = 880, duration = 120) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = freq;
+    o.start();
+    setTimeout(() => { o.stop(); ctx.close(); }, duration);
+  } catch (e) {}
+}
+
+function vibrate(ms = 80) {
+  if (navigator.vibrate) navigator.vibrate(ms);
+}
+
+function lockScan(ms = 2000) {
+  locked = true;
+  clearTimeout(unlockTimer);
+  unlockTimer = setTimeout(() => locked = false, ms);
+}
+
+function renderValid(data) {
+  const el = document.getElementById('result');
+  el.innerHTML = `
+    <div class="screen ok">
+      <div style="font-size:42px;">✅</div>
+      <div class="plate">${data.plate}</div>
+      <div class="meta">${data.holder}</div>
+      <div class="meta">${data.type}</div>
+      <div class="meta">Scadenza: ${data.valid_to}</div>
+    </div>
+  `;
+}
+
+function renderInvalid(data) {
+  const el = document.getElementById('result');
+  el.innerHTML = `
+    <div class="screen ko">
+      <div style="font-size:42px;">❌</div>
+      <div class="meta">${data.reason || 'Non valido'}</div>
+    </div>
+  `;
+}
+
+function extractToken(decodedText) {
+  if (!decodedText) return null;
+  if (decodedText.includes('/')) {
+    return decodedText.split('/').pop();
+  }
+  return decodedText;
 }
 
 function onScanSuccess(decodedText) {
-    try {
-        const url = new URL(decodedText);
-        const token = url.pathname.split('/').pop();
+  if (locked) return;
 
-        fetch(`/api/verify/${token}`)
-            .then(res => res.json())
-            .then(data => showResult(data));
+  const token = extractToken(decodedText);
+  if (!token) return;
 
-    } catch (e) {
-        console.error(e);
-    }
+  lockScan(2000); // blocca scansioni multiple
+
+  fetch(`https://capriqrcode.sw19.it/api/verify/${token}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'valid') {
+        beep(880, 120);
+        vibrate(80);
+        renderValid(data);
+      } else {
+        beep(220, 180);
+        vibrate([80, 50, 80]);
+        renderInvalid(data);
+      }
+    })
+    .catch(() => {
+      beep(220, 180);
+      renderInvalid({ reason: 'Errore rete' });
+    });
 }
 
+// Avvio camera (preferisci posteriore)
 const html5QrCode = new Html5Qrcode("reader");
 
 html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
-    onScanSuccess
+  { facingMode: "environment" },
+  { fps: 10, qrbox: 260 },
+  onScanSuccess
 ).catch(() => {
-
-    // fallback se environment non funziona
-    Html5Qrcode.getCameras().then(devices => {
-        if (devices.length) {
-            html5QrCode.start(
-                devices[devices.length - 1].id,
-                { fps: 10, qrbox: 250 },
-                onScanSuccess
-            );
-        }
-    });
-
+  Html5Qrcode.getCameras().then(devices => {
+    if (devices.length) {
+      html5QrCode.start(devices[devices.length - 1].id, { fps: 10, qrbox: 260 }, onScanSuccess);
+    }
+  });
 });
-
 </script>
 
 </body>
