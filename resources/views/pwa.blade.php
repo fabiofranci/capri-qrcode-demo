@@ -79,15 +79,25 @@ function onScanSuccess(decodedText) {
 
 const html5QrCode = new Html5Qrcode("reader");
 
-Html5Qrcode.getCameras().then(devices => {
-    if (devices && devices.length) {
-        html5QrCode.start(
-            devices[0].id,
-            { fps: 10, qrbox: 250 },
-            onScanSuccess
-        );
-    }
+html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    onScanSuccess
+).catch(() => {
+
+    // fallback se environment non funziona
+    Html5Qrcode.getCameras().then(devices => {
+        if (devices.length) {
+            html5QrCode.start(
+                devices[devices.length - 1].id,
+                { fps: 10, qrbox: 250 },
+                onScanSuccess
+            );
+        }
+    });
+
 });
+
 </script>
 
 </body>
