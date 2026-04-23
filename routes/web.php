@@ -6,6 +6,8 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Models\Permit;
 use App\Http\Controllers\PermitPrintController;
 
+Route::view('/app', 'pwa');
+
 Route::get('/print/{id}', [PermitPrintController::class, 'show']);
 Route::get('/print-all', [PermitPrintController::class, 'all']);
 Route::get('/qr-test', function () {
