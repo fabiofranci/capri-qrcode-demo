@@ -89,6 +89,11 @@ function renderInvalid(data) {
   `;
 }
 
+function resetScanner() {
+    document.getElementById('result').innerHTML = '';
+    locked = false;
+}
+
 function extractToken(decodedText) {
   if (!decodedText) return null;
   if (decodedText.includes('/')) {
