@@ -16,6 +16,12 @@ class Permit extends Model
         'qr_token',
     ];
 
+    protected $casts = [
+        'valid_from' => 'date',
+        'valid_to' => 'date',
+    ];
+
+
     protected static function booted()
     {
         static::creating(function ($permit) {
