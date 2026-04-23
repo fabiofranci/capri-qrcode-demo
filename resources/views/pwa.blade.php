@@ -88,6 +88,31 @@
     color:#fff;
     cursor:pointer;
   }
+
+  .start-screen {
+    position: fixed;
+    inset: 0;
+    background: #1f3c88;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+}
+
+.start-btn {
+    margin-top: 20px;
+    padding: 14px 24px;
+    font-size: 18px;
+    border: none;
+    border-radius: 8px;
+    background: #fff;
+    color: #1f3c88;
+    cursor: pointer;
+    font-weight: bold;
+}
 </style>
 </head>
 <body>
@@ -100,6 +125,16 @@
 </div>
 
 <h2>Scanner Polizia Municipale</h2>
+
+<div id="start-screen" class="start-screen">
+    <img src="/logo.png" style="height:60px; margin-bottom:15px;">
+    <h2>Comune di Capri</h2>
+    <p style="opacity:0.7;">Controllo permessi NCC e navette</p>
+
+    <button onclick="startScanner()" class="start-btn">
+        📷 Tocca per inquadrare QR Code
+    </button>
+</div>
 
 <div id="reader"></div>
 
@@ -162,6 +197,15 @@ function renderInvalid(data) {
 function resetScanner() {
     document.getElementById('result').innerHTML = '';
     locked = false;
+
+    // opzionale: torna alla schermata iniziale
+    document.getElementById('start-screen').style.display = 'flex';
+
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            html5QrCode.clear();
+        }).catch(() => {});
+    }
 }
 
 function extractToken(decodedText) {
@@ -199,20 +243,29 @@ function onScanSuccess(decodedText) {
     });
 }
 
-// Avvio camera (preferisci posteriore)
-const html5QrCode = new Html5Qrcode("reader");
+let html5QrCode = null;
 
-html5QrCode.start(
-  { facingMode: "environment" },
-  { fps: 10, qrbox: 260 },
-  onScanSuccess
-).catch(() => {
-  Html5Qrcode.getCameras().then(devices => {
-    if (devices.length) {
-      html5QrCode.start(devices[devices.length - 1].id, { fps: 10, qrbox: 260 }, onScanSuccess);
-    }
-  });
-});
+function startScanner() {
+    document.getElementById('start-screen').style.display = 'none';
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 260 },
+        onScanSuccess
+    ).catch(() => {
+        Html5Qrcode.getCameras().then(devices => {
+            if (devices.length) {
+                html5QrCode.start(
+                    devices[devices.length - 1].id,
+                    { fps: 10, qrbox: 260 },
+                    onScanSuccess
+                );
+            }
+        });
+    });
+}
 </script>
 
 </body>
