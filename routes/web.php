@@ -5,6 +5,7 @@ use App\Http\Controllers\VerifyPageController;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Models\Permit;
 use App\Http\Controllers\PermitPdfController;
+use App\Http\Controllers\PermitPrintController;
 
 Route::get('/permits/{permit}/pdf', [PermitPdfController::class, 'download'])
     ->name('permits.pdf');
