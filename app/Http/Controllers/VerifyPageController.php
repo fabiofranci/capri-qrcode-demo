@@ -23,7 +23,7 @@ class VerifyPageController extends Controller
 
         return view('verify', [
             'status' => $result['status'],
-            'reason' => $this->translateReason($result['reason']),
+            'reason' => $permit->getReasonLabel(),
             'permit' => $permit,
         ]);
     }

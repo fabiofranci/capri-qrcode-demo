@@ -116,6 +116,16 @@ class Permit extends Model
         ];
     }
 
+    public function getReasonLabel(): ?string
+    {
+        return match ($this->getValidationResult()['reason']) {
+            'revoked' => 'Permesso revocato',
+            'expired' => 'Permesso scaduto',
+            'not_started' => 'Permesso non ancora valido',
+            default => null,
+        };
+    }
+
     public function isValid(): bool
     {
         return $this->getValidationResult()['status'] === 'valid';

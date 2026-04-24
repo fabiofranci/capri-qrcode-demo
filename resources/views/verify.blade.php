@@ -29,6 +29,8 @@
 <body class="{{ $status === 'valid' ? 'valid' : 'invalid' }}">
 
 <div class="box">
+    {!! QrCode::size(180)->generate(url("/verify/{$permit->qr_token}")) !!}
+    
     @if($status === 'valid')
         <h1>✅ PERMESSO VALIDO</h1>
 

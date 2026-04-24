@@ -4,7 +4,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\VerifyPageController;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Models\Permit;
-use App\Http\Controllers\PermitPrintController;
+use App\Http\Controllers\PermitPdfController;
+
+Route::get('/permits/{permit}/pdf', [PermitPdfController::class, 'download'])
+    ->name('permits.pdf');
 
 Route::view('/app', 'pwa');
 
