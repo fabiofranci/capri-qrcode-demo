@@ -15,30 +15,18 @@ class VerifyPermitController extends Controller
         if (!$permit) {
             return response()->json([
                 'status' => 'invalid',
-                'reason' => 'not_found'
-            ]);
+                'reason' => 'not_found',
+            ], 404);
         }
 
-        if ($permit->status === 'revoked') {
-            return response()->json([
-                'status' => 'invalid',
-                'reason' => 'revoked'
-            ]);
-        }
-
-        if (Carbon::now()->gt($permit->valid_to)) {
-            return response()->json([
-                'status' => 'invalid',
-                'reason' => 'expired'
-            ]);
-        }
+        $result = $permit->getValidationResult();
 
         return response()->json([
-            'status' => 'valid',
+            ...$result,
             'plate' => $permit->plate,
             'holder' => $permit->holder,
             'type' => $permit->type,
-            'valid_to' => $permit->valid_to->format('Y-m-d'),
+            'valid_to' => optional($permit->valid_to)->format('Y-m-d'),
         ]);
     }
 }

@@ -7,6 +7,7 @@ use Carbon\Carbon;
 
 class VerifyPageController extends Controller
 {
+
     public function show($token)
     {
         $permit = Permit::where('qr_token', $token)->first();
@@ -14,29 +15,16 @@ class VerifyPageController extends Controller
         if (!$permit) {
             return view('verify', [
                 'status' => 'invalid',
-                'reason' => 'Permesso non trovato'
+                'reason' => 'Permesso non trovato',
             ]);
         }
 
-        if ($permit->status === 'revoked') {
-            return view('verify', [
-                'status' => 'invalid',
-                'reason' => 'Permesso revocato',
-                'permit' => $permit
-            ]);
-        }
-
-        if (Carbon::now()->gt($permit->valid_to)) {
-            return view('verify', [
-                'status' => 'invalid',
-                'reason' => 'Permesso scaduto',
-                'permit' => $permit
-            ]);
-        }
+        $result = $permit->getValidationResult();
 
         return view('verify', [
-            'status' => 'valid',
-            'permit' => $permit
+            'status' => $result['status'],
+            'reason' => $this->translateReason($result['reason']),
+            'permit' => $permit,
         ]);
     }
 }
