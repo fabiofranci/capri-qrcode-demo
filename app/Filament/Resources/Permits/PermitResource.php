@@ -30,6 +30,8 @@ use Filament\Actions\DeleteBulkAction;
 
 use Barryvdh\DomPDF\Facade\Pdf;
 
+use Illuminate\Database\Eloquent\Builder;
+
 
 class PermitResource extends Resource
 {
@@ -49,6 +51,26 @@ class PermitResource extends Resource
         return $pdf->download('permesso_'.$permit->plate.'.pdf');
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $filter = request()->get('filter');
+
+        return match ($filter) {
+            'scaduti' => $query->where('valid_to', '<', now()),
+            
+            'in_scadenza' => $query->whereBetween('valid_to', [
+                now(),
+                now()->addDays(30),
+            ]),
+            
+            'attivi' => $query->where('valid_to', '>', now()->addDays(30)),
+            
+            default => $query,
+        };
+    }
+
     /*
     |--------------------------------------------------------------------------
     | FORM (Filament v4)
@@ -60,13 +82,17 @@ class PermitResource extends Resource
         return $schema->schema([
             Section::make('Dati')
                 ->schema([
-                    TextInput::make('plate')
-                        ->label('Targa')
-                        ->required(),
-
-                    TextInput::make('holder')
+                    Select::make('permit_holder_id')
                         ->label('Intestatario')
-                        ->required(),
+                        ->relationship('permitHolder', 'nome')
+                        ->searchable()
+                        ->helperText('Seleziona il titolare; il nome verrà salvato come snapshot.'),
+
+                    Select::make('vehicle_id')
+                        ->label('Veicolo')
+                        ->relationship('vehicle', 'targa')
+                        ->searchable()
+                        ->helperText('Seleziona il veicolo; la targa verrà salvata come snapshot.'),
 
                     Select::make('type')
                         ->options([
@@ -110,15 +136,17 @@ class PermitResource extends Resource
         return $table
             ->defaultSort('valid_to', 'desc')
             ->columns([
-                TextColumn::make('plate')
+                TextColumn::make('vehicle.targa')
                     ->label('Targa')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->getStateUsing(fn (Permit $record) => $record->vehicle?->targa ?? $record->plate),
 
-                TextColumn::make('holder')
+                TextColumn::make('permitHolder.nome')
                     ->label('Intestatario')
                     ->searchable()
-                    ->toggleable(),
+                    ->toggleable()
+                    ->getStateUsing(fn (Permit $record) => $record->permitHolder?->nome ?? $record->holder),
 
                 TextColumn::make('type')
                     ->label('Tipo')

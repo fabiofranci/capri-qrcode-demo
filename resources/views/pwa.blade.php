@@ -174,7 +174,7 @@ function renderValid(data) {
     <div class="screen ok">
       <div class="badge">✔</div>
       <div class="plate">${data.plate}</div>
-      <div class="meta">${data.holder}</div>
+      <div class="meta">${data.holder_name || data.holder}</div>
       <div class="meta">${data.type}</div>
       <div class="meta">Scadenza: ${data.valid_to}</div>
 

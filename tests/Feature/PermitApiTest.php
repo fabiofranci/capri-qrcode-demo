@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use App\Models\Permit; // ✅ QUESTA RIGA MANCAVA
+use App\Models\PermitHolder;
+use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class PermitApiTest extends TestCase
@@ -89,6 +91,36 @@ class PermitApiTest extends TestCase
             'status' => 'invalid',
             'reason' => 'not_started',
         ]);
-    }    
+    }
 
+    public function test_it_returns_holder_name_from_related_models()
+    {
+        $holder = PermitHolder::create([
+            'nome' => 'Mario',
+            'cognome' => 'Rossi',
+        ]);
+
+        $vehicle = Vehicle::create([
+            'permit_holder_id' => $holder->id,
+            'targa' => 'AA123BB',
+            'marca' => 'Fiat',
+            'modello' => 'Panda',
+            'colore' => 'Bianco',
+        ]);
+
+        $permit = Permit::factory()->create([
+            'permit_holder_id' => $holder->id,
+            'vehicle_id' => $vehicle->id,
+            'holder' => 'Legacy Name',
+            'plate' => 'ZZ999YY',
+        ]);
+
+        $response = $this->getJson("/api/verify/{$permit->qr_token}");
+
+        $response->assertJson([
+            'holder_name' => 'Mario',
+            'holder' => 'Mario',
+            'plate' => 'AA123BB',
+        ]);
+    }
 }

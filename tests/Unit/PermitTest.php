@@ -4,14 +4,15 @@ namespace Tests\Unit;
 
 use Tests\TestCase;
 use App\Models\Permit;
+use App\Models\PermitHolder;
+use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class PermitTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
-    public function it_is_valid_when_in_date_range_and_active()
+    public function test_is_valid_when_in_date_range_and_active()
     {
         $permit = Permit::factory()->create([
             'valid_from' => now()->subDay(),
@@ -22,8 +23,7 @@ class PermitTest extends TestCase
         $this->assertTrue($permit->isValid());
     }
 
-    /** @test */
-    public function it_is_not_valid_if_expired()
+    public function test_is_not_valid_if_expired()
     {
         $permit = Permit::factory()->create([
             'valid_from' => now()->subDays(5),
@@ -33,8 +33,7 @@ class PermitTest extends TestCase
         $this->assertFalse($permit->isValid());
     }
 
-    /** @test */
-    public function it_is_not_valid_if_revoked()
+    public function test_is_not_valid_if_revoked()
     {
         $permit = Permit::factory()->create([
             'status' => 'revoked',
@@ -43,8 +42,7 @@ class PermitTest extends TestCase
         $this->assertFalse($permit->isValid());
     }
 
-    /** @test */
-    public function it_detects_expired()
+    public function test_detects_expired()
     {
         $permit = Permit::factory()->create([
             'valid_to' => now()->subDay(),
@@ -53,13 +51,39 @@ class PermitTest extends TestCase
         $this->assertTrue($permit->isExpired());
     }
 
-    /** @test */
-    public function it_generates_qr_token_if_missing()
+    public function test_generates_qr_token_if_missing()
     {
         $permit = Permit::factory()->create([
             'qr_token' => null,
         ]);
 
         $this->assertNotNull($permit->qr_token);
+    }
+
+    public function test_syncs_holder_and_plate_from_relations_on_save()
+    {
+        $holder = PermitHolder::create([
+            'nome' => 'Mario',
+            'cognome' => 'Rossi',
+        ]);
+
+        $vehicle = Vehicle::create([
+            'permit_holder_id' => $holder->id,
+            'targa' => 'AA123BB',
+            'marca' => 'Fiat',
+            'modello' => 'Panda',
+            'colore' => 'Bianco',
+        ]);
+
+        $permit = Permit::factory()->create([
+            'permit_holder_id' => $holder->id,
+            'vehicle_id' => $vehicle->id,
+            'holder' => null,
+            'plate' => null,
+        ]);
+
+        $this->assertSame('Mario', $permit->holder);
+        $this->assertSame('AA123BB', $permit->plate);
+        $this->assertSame('Mario', $permit->holder_name);
     }
 }

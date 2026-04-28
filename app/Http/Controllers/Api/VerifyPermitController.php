@@ -23,8 +23,9 @@ class VerifyPermitController extends Controller
 
         return response()->json([
             ...$result,
-            'plate' => $permit->plate,
+            'holder_name' => $permit->holder_name,
             'holder' => $permit->holder,
+            'plate' => $permit->plate,
             'type' => $permit->type,
             'valid_to' => optional($permit->valid_to)->format('Y-m-d'),
         ]);
