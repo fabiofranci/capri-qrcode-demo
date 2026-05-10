@@ -113,9 +113,74 @@
     cursor: pointer;
     font-weight: bold;
 }
+#splash-screen {
+    position: fixed;
+    inset: 0;
+    background: #1f3c88;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    z-index: 999999;
+
+    color: white;
+
+    transition: opacity .4s ease;
+}
+
+.splash-logo {
+    width: 140px;
+    margin-bottom: 25px;
+}
+
+.splash-title {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.splash-subtitle {
+    opacity: .8;
+    margin-bottom: 30px;
+}
+
+.splash-spinner {
+    width: 52px;
+    height: 52px;
+
+    border: 4px solid rgba(255,255,255,0.25);
+    border-top: 4px solid white;
+
+    border-radius: 50%;
+
+    animation: splash-spin 1s linear infinite;
+}
+
+@keyframes splash-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 </style>
 </head>
 <body>
+  <div id="splash-screen">
+
+    <img src="/logo.png" class="splash-logo">
+
+    <div class="splash-title">
+        Comune di Capri
+    </div>
+
+    <div class="splash-subtitle">
+        Verifica permessi NCC e navette
+    </div>
+
+    <div class="splash-spinner"></div>
+
+</div>
 <div class="header">
   <img src="/logo.png" alt="Logo">
   <div class="header-title">Comune di Capri – Verifica Permessi</div>
@@ -266,6 +331,22 @@ function startScanner() {
         });
     });
 }
+window.addEventListener('load', () => {
+
+    setTimeout(() => {
+
+        const splash = document.getElementById('splash-screen');
+
+        splash.style.opacity = '0';
+
+        setTimeout(() => {
+            splash.remove();
+        }, 400);
+
+    }, 1200);
+
+});
+
 </script>
 
 </body>
