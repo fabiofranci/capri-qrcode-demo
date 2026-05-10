@@ -27,5 +27,5 @@ Route::get('/verify/{token}', [VerifyPageController::class, 'show'])
     ->name('verify.show');
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('filament.admin.auth.login');
 });
