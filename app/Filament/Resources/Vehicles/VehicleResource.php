@@ -88,12 +88,78 @@ class VehicleResource extends Resource
                 TextColumn::make('modello')
                     ->label('Modello')
                     ->sortable(),
-            ]);
+
+                TextColumn::make('permesso_attivo')
+                    ->label('Permesso attivo')
+
+                    ->state(function ($record) {
+
+                        return $record->activePermit?->type ?? 'NO';
+                    })
+
+                    ->badge()
+
+                    ->color(function ($record) {
+
+                        return $record->activePermit
+                            ? 'success'
+                            : 'danger';
+                    }),
+
+                    ])
+
+
+            ->actions([
+
+                \Filament\Actions\Action::make('permit')
+
+                    ->label(function ($record) {
+
+                        return $record->activePermit
+                            ? 'Apri'
+                            : 'Nuovo';
+                    })
+
+                    ->icon(function ($record) {
+
+                        return $record->activePermit
+                            ? 'heroicon-o-eye'
+                            : 'heroicon-o-qr-code';
+                    })
+
+                    ->color(function ($record) {
+
+                        return $record->activePermit
+                            ? 'success'
+                            : 'primary';
+                    })
+
+                    ->url(function ($record) {
+
+                        // esiste già un permesso valido
+                        if ($record->activePermit) {
+
+                            return \App\Filament\Resources\Permits\Pages\EditPermit::getUrl([
+                                'record' => $record->activePermit,
+                            ]);
+                        }
+
+                        // crea nuovo permesso
+                        return \App\Filament\Resources\Permits\Pages\CreatePermit::getUrl([
+                            'vehicle_id' => $record->id,
+                            'permit_holder_id' => $record->permit_holder_id,
+                        ]);
+                    }),
+
+            ]);            
+
     }
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            RelationManagers\PermitsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

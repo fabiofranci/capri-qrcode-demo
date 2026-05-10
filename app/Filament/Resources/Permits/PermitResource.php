@@ -57,6 +57,7 @@ class PermitResource extends Resource
             Section::make('Dati')
                 ->schema([
                     Select::make('vehicle_id')
+                        ->default(request()->get('vehicle_id'))
                         ->label('Veicolo')
                         ->relationship('vehicle', 'targa')
                         ->getOptionLabelFromRecordUsing(fn (Vehicle $record): string =>

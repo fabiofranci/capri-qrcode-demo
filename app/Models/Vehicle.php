@@ -27,6 +27,21 @@ class Vehicle extends Model
         return $this->hasMany(Permit::class);
     }
 
+    public function latestPermit()
+    {
+        return $this->hasOne(Permit::class)
+            ->latestOfMany();
+    }
+
+    public function activePermit()
+    {
+        return $this->hasOne(Permit::class)
+            ->where('status', 'active')
+            ->whereDate('valid_from', '<=', now())
+            ->whereDate('valid_to', '>=', now())
+            ->latestOfMany();
+    }
+
     public function getDisplayNameAttribute()
     {
         return $this->targa . ' - ' . ($this->permitHolder->nome ?? '');

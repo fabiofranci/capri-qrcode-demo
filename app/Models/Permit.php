@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class Permit extends Model
 {
@@ -193,7 +194,28 @@ class Permit extends Model
         });
 
         static::saving(function (Permit $permit) {
+            $exists = Permit::query()
 
+                ->where('vehicle_id', $permit->vehicle_id)
+
+                ->where('id', '!=', $permit->id)
+
+                ->where('status', 'active')
+
+                ->whereDate('valid_from', '<=', now())
+
+                ->whereDate('valid_to', '>=', now())
+
+                ->exists();
+
+            if ($exists) {
+
+                throw ValidationException::withMessages([
+
+                    'vehicle_id' => 'Esiste già un permesso attivo per questo veicolo.',
+
+                ]);
+            }
             $permit->syncSnapshotFields();
 
         });
