@@ -222,6 +222,9 @@ class Permit extends Model
 
                 $this->plate = $vehicle->targa;
 
+                // sincronizza FK holder
+                $this->permit_holder_id = $vehicle->permit_holder_id;
+
                 if ($vehicle->permitHolder) {
 
                     $this->holder = trim(
@@ -229,8 +232,8 @@ class Permit extends Model
                         ($vehicle->permitHolder->nome ?? '')
                     );
                 }
-            }
-        }
+            } 
+       }
 
         /*
         |--------------------------------------------------------------------------
