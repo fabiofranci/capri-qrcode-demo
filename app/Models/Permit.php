@@ -2,38 +2,42 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Carbon\Carbon;
 
 class Permit extends Model
 {
     use HasFactory;
+
     protected $fillable = [
-        // legacy
+
+        // snapshot legacy
         'plate',
         'holder',
+
+        // dati permesso
         'type',
         'status',
 
-        // nuove relazioni
+        // relazioni
         'permit_holder_id',
         'vehicle_id',
         'permit_status_id',
 
-        // date
+        // validità
         'valid_from',
         'valid_to',
 
-        // QR
+        // qr
         'qr_token',
     ];
 
     protected $casts = [
         'valid_from' => 'date',
-        'valid_to'   => 'date',
+        'valid_to' => 'date',
     ];
 
     protected $appends = [
@@ -63,34 +67,30 @@ class Permit extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | ACCESSOR (retrocompatibilità)
+    | ACCESSOR
     |--------------------------------------------------------------------------
     */
 
-    public function getPlateAttribute($value)
+    public function getPlateAttribute($value): ?string
     {
-        return $this->vehicle?->targa ?? $value;
+        return $this->attributes['plate'] ?? $value;
     }
 
-    public function getHolderAttribute($value)
+    public function getHolderAttribute($value): ?string
     {
-        if ($this->permitHolder) {
-            if ($this->permitHolder->cognome) {
-                return trim($this->permitHolder->cognome . ' ' . $this->permitHolder->nome);
-            }
-            return $this->permitHolder->nome;
-        }
-        return $value;
+        return $this->attributes['holder'] ?? $value;
     }
 
     public function getHolderNameAttribute(): ?string
     {
         if ($this->permitHolder) {
-            if ($this->permitHolder->cognome) {
-                return trim($this->permitHolder->cognome . ' ' . $this->permitHolder->nome);
-            }
-            return $this->permitHolder->nome;
+
+            return trim(
+                ($this->permitHolder->cognome ?? '') . ' ' .
+                ($this->permitHolder->nome ?? '')
+            );
         }
+
         return $this->attributes['holder'] ?? null;
     }
 
@@ -101,7 +101,7 @@ class Permit extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | LOGICA
+    | VALIDAZIONE
     |--------------------------------------------------------------------------
     */
 
@@ -141,9 +141,13 @@ class Permit extends Model
     public function getReasonLabel(): ?string
     {
         return match ($this->getValidationResult()['reason']) {
+
             'revoked' => 'Permesso revocato',
+
             'expired' => 'Permesso scaduto',
+
             'not_started' => 'Permesso non ancora valido',
+
             default => null,
         };
     }
@@ -155,14 +159,18 @@ class Permit extends Model
 
     public function isExpired(): bool
     {
-        return now()->toDateString() > $this->valid_to->toDateString();
+        if (!$this->valid_to) {
+            return false;
+        }
+
+        return now()->gt($this->valid_to);
     }
 
     public static function inScadenzaProssimiGiorni(int $giorni = 30)
     {
         return self::query()
-            ->whereNotNull('valido_al')
-            ->whereBetween('valido_al', [
+            ->whereNotNull('valid_to')
+            ->whereBetween('valid_to', [
                 Carbon::today(),
                 Carbon::today()->addDays($giorni),
             ]);
@@ -170,47 +178,81 @@ class Permit extends Model
 
     /*
     |--------------------------------------------------------------------------
-    | BOOT (auto token)
+    | BOOT
     |--------------------------------------------------------------------------
     */
 
     protected static function booted(): void
     {
-        static::creating(function ($permit) {
+        static::creating(function (Permit $permit) {
+
             if (empty($permit->qr_token)) {
                 $permit->qr_token = (string) Str::uuid();
             }
-            if ($permit->permitHolder) {
 
-                $permit->holder = trim(
-                    $permit->permitHolder->cognome . ' ' .
-                    $permit->permitHolder->nome
-                );
-            }
         });
 
-
         static::saving(function (Permit $permit) {
+
             $permit->syncSnapshotFields();
+
         });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | SNAPSHOT
+    |--------------------------------------------------------------------------
+    */
+
     public function syncSnapshotFields(): void
     {
-        if ($this->permit_holder_id) {
-            $holder = $this->permitHolder ?? PermitHolder::find($this->permit_holder_id);
-            if ($holder) {
-                // Usa la logica di getFullNameAttribute
-                if ($holder->cognome) {
-                    $this->holder = trim($holder->cognome . ' ' . $holder->nome);
-                } else {
-                    $this->holder = $holder->nome;
+        /*
+        |--------------------------------------------------------------------------
+        | HOLDER SNAPSHOT
+        |--------------------------------------------------------------------------
+        */
+
+        if ($this->vehicle_id) {
+
+            $vehicle = $this->vehicle
+                ?? Vehicle::with('permitHolder')->find($this->vehicle_id);
+
+            if ($vehicle) {
+
+                $this->plate = $vehicle->targa;
+
+                if ($vehicle->permitHolder) {
+
+                    $this->holder = trim(
+                        ($vehicle->permitHolder->cognome ?? '') . ' ' .
+                        ($vehicle->permitHolder->nome ?? '')
+                    );
                 }
             }
         }
 
-        if ($this->vehicle_id) {
-            $this->plate = $this->vehicle?->targa ?? Vehicle::find($this->vehicle_id)?->targa;
+        /*
+        |--------------------------------------------------------------------------
+        | FALLBACK HOLDER
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            empty($this->holder)
+            && $this->permit_holder_id
+        ) {
+
+            $holder = $this->permitHolder
+                ?? PermitHolder::find($this->permit_holder_id);
+
+            if ($holder) {
+
+                $this->holder = trim(
+                    ($holder->cognome ?? '') . ' ' .
+                    ($holder->nome ?? '')
+                );
+            }
         }
     }
 }

@@ -4,36 +4,28 @@ namespace App\Filament\Resources\Permits;
 
 use App\Filament\Resources\Permits\Pages;
 use App\Models\Permit;
+use App\Models\PermitHolder;
+use App\Models\Vehicle;
 use BackedEnum;
-use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
-use Filament\Tables\Table;
-
-// Forms (v4: componenti sotto Forms\Components)
-use Filament\Schemas\Components\Section;
-
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DatePicker;
-use Filament\Schemas\Components\Utilities\Get;
-use Filament\Forms\Components\Placeholder;
-
-// Tables
-use Filament\Tables;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\BadgeColumn;
-use Filament\Tables\Filters\Filter;
-use Filament\Tables\Filters\SelectFilter;
-
-use Filament\Actions\EditAction;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\DeleteBulkAction;
-
-use Barryvdh\DomPDF\Facade\Pdf;
-
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Schema;
+use Filament\Tables;
+use Filament\Tables\Columns\BadgeColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-
 
 class PermitResource extends Resource
 {
@@ -44,112 +36,116 @@ class PermitResource extends Resource
     protected static ?string $modelLabel = 'Permesso';
     protected static ?string $pluralModelLabel = 'Permessi';
 
-
-    protected static function mutateFormDataBeforeCreate(array $data): array
-    {
-        $vehicle = \App\Models\Vehicle::with('permitHolder')
-            ->find($data['vehicle_id']);
-
-        $data['plate'] = $vehicle?->targa;
-        $data['holder'] = $vehicle?->permitHolder?->nome;
-
-        return $data;
-    }
-
-    protected static function mutateFormDataBeforeSave(array $data): array
-    {
-        if (!empty($data['vehicle_id'])) {
-            $vehicle = \App\Models\Vehicle::with('permitHolder')
-                ->find($data['vehicle_id']);
-
-            $data['plate'] = $vehicle?->targa;
-            $data['holder'] = $vehicle?->permitHolder?->nome;
-        }
-
-        return $data;
-    }
-
-    public function downloadPdf($id)
-    {
-        $permit = Permit::findOrFail($id);
-
-        $pdf = Pdf::loadView('pdf.permit_badge', compact('permit'));
-
-        return $pdf->download('permesso_'.$permit->plate.'.pdf');
-    }
-
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
 
-        $filter = request()->get('filter');
-
-        return match ($filter) {
+        return match (request()->get('filter')) {
             'scaduti' => $query->where('valid_to', '<', now()),
-            
             'in_scadenza' => $query->whereBetween('valid_to', [
                 now(),
                 now()->addDays(30),
             ]),
-            
             'attivi' => $query->where('valid_to', '>', now()->addDays(30)),
-            
             default => $query,
         };
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | FORM (Filament v4)
-    |--------------------------------------------------------------------------
-    */
 
     public static function form(Schema $schema): Schema
     {
         return $schema->schema([
             Section::make('Dati')
                 ->schema([
-
-                  
-
                     Select::make('vehicle_id')
                         ->label('Veicolo')
                         ->relationship('vehicle', 'targa')
+                        ->getOptionLabelFromRecordUsing(fn (Vehicle $record): string =>
+                            trim($record->targa . ' - ' . ($record->marca ?? '') . ' ' . ($record->modello ?? ''))
+                        )
                         ->searchable()
                         ->preload()
+                        ->live()
                         ->required()
                         ->createOptionForm([
                             Select::make('permit_holder_id')
                                 ->label('Intestatario')
-                                ->relationship('vehicle', 'display_name')
-                                ->required(),
+                                ->relationship('permitHolder', 'cognome')
+                                ->getOptionLabelFromRecordUsing(fn (PermitHolder $record): string =>
+                                    trim($record->cognome . ' ' . $record->nome)
+                                )
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->createOptionForm([
+                                    TextInput::make('nome')
+                                        ->required(),
 
-                            \Filament\Forms\Components\TextInput::make('targa')
-                                ->required(),
-                            
-                            \Filament\Forms\Components\TextInput::make('marca'),
-                            \Filament\Forms\Components\TextInput::make('modello'),
+                                    TextInput::make('cognome')
+                                        ->required(),
+
+                                    TextInput::make('email')
+                                        ->email(),
+
+                                    TextInput::make('telefono'),
+
+                                    TextInput::make('codice_fiscale')
+                                        ->extraInputAttributes([
+                                            'style' => 'text-transform: uppercase',
+                                        ])
+                                        ->dehydrateStateUsing(fn (?string $state): ?string =>
+                                            $state ? strtoupper($state) : null
+                                        ),
+                                ])
+                                ->createOptionUsing(function (array $data): int {
+                                    return PermitHolder::create($data)->id;
+                                })
+                                ->createOptionAction(fn ($action) =>
+                                    $action
+                                        ->modalHeading('Nuovo intestatario')
+                                        ->modalSubmitActionLabel('Crea')
+                                ),
+
+                            TextInput::make('targa')
+                                ->label('Targa')
+                                ->required()
+                                ->extraInputAttributes([
+                                    'style' => 'text-transform: uppercase',
+                                ])
+                                ->dehydrateStateUsing(fn (?string $state): ?string =>
+                                    $state ? strtoupper($state) : null
+                                ),
+
+                            TextInput::make('marca')
+                                ->label('Marca'),
+
+                            TextInput::make('modello')
+                                ->label('Modello'),
                         ])
-                        ->createOptionUsing(function (array $data) {
+                        ->createOptionUsing(function (array $data): int {
                             $data['targa'] = strtoupper($data['targa']);
-                            return \App\Models\Vehicle::create($data);
+
+                            return Vehicle::create($data)->id;
                         })
-                        ->createOptionAction(function ($action) {
-                            return $action
+                        ->createOptionAction(fn ($action) =>
+                            $action
                                 ->modalHeading('Nuovo veicolo')
-                                ->modalSubmitActionLabel('Crea');
-                        }),
+                                ->modalSubmitActionLabel('Crea')
+                        ),
 
                     Placeholder::make('holder')
                         ->label('Intestatario')
-                        ->content(function (Get $get) {
-                            $vehicle = \App\Models\Vehicle::with('permitHolder')
+                        ->content(function (Get $get): string {
+                            $vehicle = Vehicle::with('permitHolder')
                                 ->find($get('vehicle_id'));
 
-                            return $vehicle?->permitHolder?->nome ?? '-';
+                            return trim(
+                                ($vehicle?->permitHolder?->nome ?? '') . ' ' .
+                                ($vehicle?->permitHolder?->cognome ?? '')
+                            ) ?: '-';
                         }),
 
                     Select::make('type')
+                        ->label('Tipo')
                         ->options([
                             'NCC' => 'NCC',
                             'navetta' => 'Navetta',
@@ -157,6 +153,7 @@ class PermitResource extends Resource
                         ->required(),
 
                     Select::make('status')
+                        ->label('Stato')
                         ->options([
                             'active' => 'Attivo',
                             'revoked' => 'Revocato',
@@ -180,31 +177,23 @@ class PermitResource extends Resource
         ]);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | TABLE
-    |--------------------------------------------------------------------------
-    */
-
     public static function table(Table $table): Table
     {
         return $table
             ->defaultSort('valid_to', 'desc')
             ->columns([
+                TextColumn::make('plate')
+                    ->label('Targa')
+                    ->searchable(),
 
-
-                Tables\Columns\TextColumn::make('plate')
-                    ->label('Targa'),
-
-                Tables\Columns\TextColumn::make('holder')
-                    ->label('Intestatario'),
-
+                TextColumn::make('holder')
+                    ->label('Intestatario')
+                    ->searchable(),
 
                 TextColumn::make('type')
                     ->label('Tipo')
                     ->badge(),
 
-                // Stato reale
                 BadgeColumn::make('status_real')
                     ->label('Stato')
                     ->getStateUsing(fn (Permit $record) => $record->getValidationResult()['status'])
@@ -213,7 +202,6 @@ class PermitResource extends Resource
                         'danger' => 'invalid',
                     ]),
 
-                // Motivo
                 TextColumn::make('reason')
                     ->label('Motivo')
                     ->getStateUsing(function (Permit $record) {
@@ -226,8 +214,7 @@ class PermitResource extends Resource
                     })
                     ->badge()
                     ->color(fn ($state) => match ($state) {
-                        'Revocato' => 'danger',
-                        'Scaduto' => 'danger',
+                        'Revocato', 'Scaduto' => 'danger',
                         'Non ancora valido' => 'warning',
                         default => 'gray',
                     }),
@@ -246,7 +233,6 @@ class PermitResource extends Resource
                     ->label('QR Token')
                     ->copyable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                                                            
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -280,9 +266,10 @@ class PermitResource extends Resource
                 Action::make('pdf')
                     ->label('PDF')
                     ->icon('heroicon-o-document')
-                    ->url(fn ($record) => route('permits.pdf', $record->id))
+                    ->url(fn (Permit $record) => route('permits.pdf', [
+                        'permit' => $record->id,
+                    ]))
                     ->openUrlInNewTab(),
-                                        
             ])
             ->bulkActions([
                 BulkAction::make('revoke')
@@ -295,12 +282,6 @@ class PermitResource extends Resource
                 DeleteBulkAction::make(),
             ]);
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | PAGES
-    |--------------------------------------------------------------------------
-    */
 
     public static function getPages(): array
     {
