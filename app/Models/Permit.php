@@ -180,7 +180,15 @@ class Permit extends Model
             if (empty($permit->qr_token)) {
                 $permit->qr_token = (string) Str::uuid();
             }
+            if ($permit->permitHolder) {
+
+                $permit->holder = trim(
+                    $permit->permitHolder->cognome . ' ' .
+                    $permit->permitHolder->nome
+                );
+            }
         });
+
 
         static::saving(function (Permit $permit) {
             $permit->syncSnapshotFields();
