@@ -26,4 +26,10 @@ class Vehicle extends Model
     {
         return $this->hasMany(Permit::class);
     }
+
+    public function getDisplayNameAttribute()
+    {
+        return $this->targa . ' - ' . ($this->permitHolder->nome ?? '');
+    }
+
 }

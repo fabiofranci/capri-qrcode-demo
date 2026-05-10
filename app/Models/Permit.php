@@ -74,12 +74,24 @@ class Permit extends Model
 
     public function getHolderAttribute($value)
     {
-        return $this->permitHolder?->nome ?? $value;
+        if ($this->permitHolder) {
+            if ($this->permitHolder->cognome) {
+                return trim($this->permitHolder->cognome . ' ' . $this->permitHolder->nome);
+            }
+            return $this->permitHolder->nome;
+        }
+        return $value;
     }
 
     public function getHolderNameAttribute(): ?string
     {
-        return $this->permitHolder?->nome ?? $this->attributes['holder'] ?? null;
+        if ($this->permitHolder) {
+            if ($this->permitHolder->cognome) {
+                return trim($this->permitHolder->cognome . ' ' . $this->permitHolder->nome);
+            }
+            return $this->permitHolder->nome;
+        }
+        return $this->attributes['holder'] ?? null;
     }
 
     public function getStatusLabelAttribute(): string
@@ -178,7 +190,15 @@ class Permit extends Model
     public function syncSnapshotFields(): void
     {
         if ($this->permit_holder_id) {
-            $this->holder = $this->permitHolder?->nome ?? PermitHolder::find($this->permit_holder_id)?->nome;
+            $holder = $this->permitHolder ?? PermitHolder::find($this->permit_holder_id);
+            if ($holder) {
+                // Usa la logica di getFullNameAttribute
+                if ($holder->cognome) {
+                    $this->holder = trim($holder->cognome . ' ' . $holder->nome);
+                } else {
+                    $this->holder = $holder->nome;
+                }
+            }
         }
 
         if ($this->vehicle_id) {

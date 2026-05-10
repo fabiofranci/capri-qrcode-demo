@@ -12,6 +12,7 @@ Route::get('/permits/{permit}/pdf', [PermitPdfController::class, 'download'])
 
 Route::view('/app', 'pwa');
 
+    
 Route::get('/print/{id}', [PermitPrintController::class, 'show']);
 Route::get('/print-all', [PermitPrintController::class, 'all']);
 Route::get('/qr-test', function () {
@@ -22,7 +23,8 @@ Route::get('/qr-test', function () {
     return QrCode::size(300)->generate($url);
 });
 
-Route::get('/verify/{token}', [VerifyPageController::class, 'show']);
+Route::get('/verify/{token}', [VerifyPageController::class, 'show'])
+    ->name('verify.show');
 
 Route::get('/', function () {
     return view('welcome');

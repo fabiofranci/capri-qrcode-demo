@@ -28,6 +28,11 @@ class PermitHolder extends Model
 
     public function getFullNameAttribute(): string
     {
-        return trim($this->nome . ' ' . $this->cognome);
+        // Se cognome è null, ritorna solo il nome (strutture)
+        // Se cognome è presente, ritorna cognome + nome (privati)
+        if ($this->cognome) {
+            return trim($this->cognome . ' ' . $this->nome);
+        }
+        return $this->nome;
     }
 }

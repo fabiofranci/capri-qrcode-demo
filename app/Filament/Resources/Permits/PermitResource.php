@@ -15,6 +15,8 @@ use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\DatePicker;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Forms\Components\Placeholder;
 
 // Tables
 use Filament\Tables;
@@ -41,6 +43,31 @@ class PermitResource extends Resource
     protected static ?string $navigationLabel = 'Permessi';
     protected static ?string $modelLabel = 'Permesso';
     protected static ?string $pluralModelLabel = 'Permessi';
+
+
+    protected static function mutateFormDataBeforeCreate(array $data): array
+    {
+        $vehicle = \App\Models\Vehicle::with('permitHolder')
+            ->find($data['vehicle_id']);
+
+        $data['plate'] = $vehicle?->targa;
+        $data['holder'] = $vehicle?->permitHolder?->nome;
+
+        return $data;
+    }
+
+    protected static function mutateFormDataBeforeSave(array $data): array
+    {
+        if (!empty($data['vehicle_id'])) {
+            $vehicle = \App\Models\Vehicle::with('permitHolder')
+                ->find($data['vehicle_id']);
+
+            $data['plate'] = $vehicle?->targa;
+            $data['holder'] = $vehicle?->permitHolder?->nome;
+        }
+
+        return $data;
+    }
 
     public function downloadPdf($id)
     {
@@ -82,17 +109,45 @@ class PermitResource extends Resource
         return $schema->schema([
             Section::make('Dati')
                 ->schema([
-                    Select::make('permit_holder_id')
-                        ->label('Intestatario')
-                        ->relationship('permitHolder', 'nome')
-                        ->searchable()
-                        ->helperText('Seleziona il titolare; il nome verrà salvato come snapshot.'),
+
+                  
 
                     Select::make('vehicle_id')
                         ->label('Veicolo')
                         ->relationship('vehicle', 'targa')
                         ->searchable()
-                        ->helperText('Seleziona il veicolo; la targa verrà salvata come snapshot.'),
+                        ->preload()
+                        ->required()
+                        ->createOptionForm([
+                            Select::make('permit_holder_id')
+                                ->label('Intestatario')
+                                ->relationship('vehicle', 'display_name')
+                                ->required(),
+
+                            \Filament\Forms\Components\TextInput::make('targa')
+                                ->required(),
+                            
+                            \Filament\Forms\Components\TextInput::make('marca'),
+                            \Filament\Forms\Components\TextInput::make('modello'),
+                        ])
+                        ->createOptionUsing(function (array $data) {
+                            $data['targa'] = strtoupper($data['targa']);
+                            return \App\Models\Vehicle::create($data);
+                        })
+                        ->createOptionAction(function ($action) {
+                            return $action
+                                ->modalHeading('Nuovo veicolo')
+                                ->modalSubmitActionLabel('Crea');
+                        }),
+
+                    Placeholder::make('holder')
+                        ->label('Intestatario')
+                        ->content(function (Get $get) {
+                            $vehicle = \App\Models\Vehicle::with('permitHolder')
+                                ->find($get('vehicle_id'));
+
+                            return $vehicle?->permitHolder?->nome ?? '-';
+                        }),
 
                     Select::make('type')
                         ->options([
@@ -136,17 +191,14 @@ class PermitResource extends Resource
         return $table
             ->defaultSort('valid_to', 'desc')
             ->columns([
-                TextColumn::make('vehicle.targa')
-                    ->label('Targa')
-                    ->searchable()
-                    ->sortable()
-                    ->getStateUsing(fn (Permit $record) => $record->vehicle?->targa ?? $record->plate),
 
-                TextColumn::make('permitHolder.nome')
-                    ->label('Intestatario')
-                    ->searchable()
-                    ->toggleable()
-                    ->getStateUsing(fn (Permit $record) => $record->permitHolder?->nome ?? $record->holder),
+
+                Tables\Columns\TextColumn::make('plate')
+                    ->label('Targa'),
+
+                Tables\Columns\TextColumn::make('holder')
+                    ->label('Intestatario'),
+
 
                 TextColumn::make('type')
                     ->label('Tipo')
